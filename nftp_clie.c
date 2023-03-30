@@ -45,13 +45,11 @@
 #define PUBLISH "pub"
 #define SUBSCRIBE "sub"
 
-// #define FPATH  "/Users/wangha/Downloads/Infuse_7.4.10_MAS.dmg"
-// #define FPATH  "/Users/wangha/Downloads/josh_cuda.ppt"
 #define FTOPIC_HELLO "file/hello/file-123"
 #define FTOPIC_ACK "file/ack/file-123"
 #define FTOPIC_BLOCKS "file/blocks/file-123"
 #define FTOPIC_GIVEME "file/giveme/file-123"
-#define FURL "mqtt-tcp://432121.xyz:1883"
+#define FURL "mqtt-tcp://127.0.0.1:1883"
 #define FSENDERCLIENTID "file-123-sender"
 #define FRECVERCLIENTID "file-123-recver"
 
@@ -192,7 +190,7 @@ wait_ack_and_giveme(void *args)
 		}
 
 		payload = nng_mqtt_msg_get_publish_payload(msg, &payload_len);
-		printf("Received payload %d \n", payload_len);
+		printf("Received payload length %d \n", payload_len);
 
 		if (payload[0] == NFTP_TYPE_ACK) {
 			g_wait = 0;
@@ -205,11 +203,13 @@ wait_ack_and_giveme(void *args)
 			nng_msg_free(msg);
 			continue;
 		}
+
 		// handle giveme
 		char * nftp_file_msg;
 		int    nftp_file_len;
 		if ((rv = nftp_proto_handler(payload, payload_len, &nftp_file_msg, &nftp_file_len)) != 0) {
-			printf("error in handle giveme %d\n", rv);
+			printf("Error in handle giveme %d\n", rv);
+			nng_msg_free(msg);
 			continue;
 		}
 		client_publish(sock, FTOPIC_BLOCKS, nftp_file_msg, nftp_file_len, 1, 1);
@@ -293,6 +293,7 @@ main(const int argc, const char **argv)
 			continue;
 		}
 
+		// Send a Hello
 		char *nftp_hello_msg = NULL;
 		int   nftp_hello_len = 0;
 		rv = nftp_proto_maker(fpath, NFTP_TYPE_HELLO, 0, 0, &nftp_hello_msg, &nftp_hello_len);
@@ -300,8 +301,8 @@ main(const int argc, const char **argv)
 			printf("hello make rv %d\n", rv);
 		client_publish(sock, FTOPIC_HELLO, nftp_hello_msg, nftp_hello_len, 1, 1);
 
+		// Wait an ACK
 		printf("wait ack\n");
-		// Wait a ACK
 		// TODO condition variable
 		while (g_wait == 1) {
 			nng_msleep(500);
@@ -314,9 +315,11 @@ main(const int argc, const char **argv)
 			printf("blocks rv %d\n", rv);
 		printf("blocks %d\n", blocks);
 		nng_msleep(1000);
+
+		// Send FILEs and END
 		for (int i=0; i<blocks-1; ++i) {
 			char *nftp_file_msg;
-			int nftp_file_len;
+			int   nftp_file_len;
 			if (i % 10 == 0) {
 				printf("Cancel sending block %d to simulate poor network.\n", i);
 				continue;
@@ -328,7 +331,7 @@ main(const int argc, const char **argv)
 			nng_msleep(250);
 		}
 		char *nftp_end_msg;
-		int nftp_end_len;
+		int   nftp_end_len;
 		nftp_proto_maker(fpath, NFTP_TYPE_END, 0, blocks-1, &nftp_end_msg, &nftp_end_len);
 		client_publish(sock, FTOPIC_BLOCKS, nftp_end_msg, nftp_end_len, 1, 1);
 		printf("done\n");

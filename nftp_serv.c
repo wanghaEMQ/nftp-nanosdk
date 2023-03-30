@@ -45,13 +45,11 @@
 #define PUBLISH "pub"
 #define SUBSCRIBE "sub"
 
-// #define FPATH  "/Users/wangha/Downloads/Infuse_7.4.10_MAS.dmg"
-// #define FPATH  "/Users/wangha/Downloads/josh_cuda.ppt"
 #define FTOPIC_HELLO "file/hello/file-123"
 #define FTOPIC_ACK "file/ack/file-123"
 #define FTOPIC_BLOCKS "file/blocks/file-123"
 #define FTOPIC_GIVEME "file/giveme/file-123"
-#define FURL "mqtt-tcp://432121.xyz:1883"
+#define FURL "mqtt-tcp://127.0.0.1:1883"
 #define FSENDERCLIENTID "file-sender"
 #define FRECVERCLIENTID "file-recver"
 
@@ -187,15 +185,7 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload,
 	    pubmsg, (uint8_t *) payload, payload_len);
 	nng_mqtt_msg_set_publish_topic(pubmsg, topic);
 
-	/*
-	if (verbose) {
-		uint8_t print[1024] = { 0 };
-		nng_mqtt_msg_dump(pubmsg, print, 1024, true);
-		printf("%s\n", print);
-	}
-	*/
-
-	printf("Publishing to '%s' ...\n", topic);
+	// printf("Publishing to '%s' ...\n", topic);
 	if ((rv = nng_sendmsg(sock, pubmsg, NNG_FLAG_NONBLOCK)) != 0) {
 		fatal("nng_sendmsg", rv);
 	}
@@ -214,7 +204,7 @@ ask_nextid(void *args)
 		nng_msg *msg;
 		uint8_t *payload;
 		uint32_t payload_len;
-		int blocks, nextid=-1;
+		int blocks, nextid;
 
 		nng_msleep(100);
 
@@ -223,14 +213,14 @@ ask_nextid(void *args)
 		}
 
 		if ((rv = nftp_proto_recv_status(fname_curr, &blocks, &nextid)) != 0) {
+			printf("Done!!! The ctx of this file has been erase %s %d\n", fname_curr, rv);
 			fname_curr = NULL;
-			printf("may be done????errror in get status %s %d\n", fname_curr, rv);
 			continue;
 		}
 
 		if (nextid > blocks-1) {
 			// no more giveme needed
-			printf("should not here %d %d\n", nextid, blocks);
+			printf("should not be here %d %d\n", nextid, blocks);
 			continue;
 		}
 
@@ -240,7 +230,6 @@ ask_nextid(void *args)
 		printf("ask nextid %d\n", nextid);
 
 		rv = nftp_proto_maker(fname_curr, NFTP_TYPE_GIVEME, 0, nextid, &payload, &payload_len);
-
 		if (rv != 0) {
 			printf("errror in make giveme %d\n", fname_curr, rv);
 			continue;
@@ -259,7 +248,7 @@ send_callback(void *arg) {
 	reason_code *code;
 	code = (reason_code *)nng_mqtt_msg_get_suback_return_codes(msg, &count);
 	printf("aio mqtt result %d \n", nng_aio_result(aio));
-	// printf("suback %d \n", *code);
+	printf("suback %d \n", *code);
 	nng_msg_free(msg);
 }
 
@@ -318,8 +307,8 @@ main(const int argc, const char **argv)
 
 	while(true) {
 		nng_msg *msg;
-		char *nftp_reply_msg = NULL;
-		int   nftp_reply_len = 0;
+		char    *nftp_reply_msg = NULL;
+		int      nftp_reply_len = 0;
 		uint8_t *payload;
 		uint32_t payload_len;
 
@@ -330,7 +319,7 @@ main(const int argc, const char **argv)
 
 		// we should only receive publish messages
 		if (nng_mqtt_msg_get_packet_type(msg) != NNG_MQTT_PUBLISH) {
-			printf("NOT PUBLISH\n");
+			printf("NOT PUBLISH???\n");
 			nng_msg_free(msg);
 			continue;
 		}
@@ -338,32 +327,42 @@ main(const int argc, const char **argv)
 		payload = nng_mqtt_msg_get_publish_payload(msg, &payload_len);
 		printf("Received payload %d \n", payload_len);
 
-		nftp_proto_handler(payload, payload_len, &nftp_reply_msg, &nftp_reply_len);
+		rv = nftp_proto_handler(payload, payload_len, &nftp_reply_msg, &nftp_reply_len);
+		if (rv != 0) {
+			printf("Error in handling payload [%x] \n", payload[0]);
+		}
 
 		if (payload[0] == NFTP_TYPE_HELLO) {
 			char *fname_;
 			int   flen_;
-			printf("REcv HELLO");
+			printf("Received HELLO");
 			nftp_proto_hello_get_fname(payload, payload_len, &fname_, &flen_);
+
 			fname_curr = strndup(fname_, flen_);
+			// Ask_nextid start work until now. Ugly but works.
+
 			printf("file name %s ..\n", fname_curr);
+			printf("reply ack\n");
 			client_publish(sock, FTOPIC_ACK, nftp_reply_msg, nftp_reply_len, 1, 1);
-			printf("replt ack\n");
+			free(nftp_reply_msg);
+
 			nng_msg_free(msg);
 			msg = NULL;
-			free(nftp_reply_msg);
 			continue;
 		}
 
 		if (payload[0] == NFTP_TYPE_FILE || payload[0] == NFTP_TYPE_END) {
-			printf("REcv FILE");
+			printf("Received FILE");
+			free(nftp_reply_msg);
+
 			nng_msg_free(msg);
 			msg = NULL;
-			free(nftp_reply_msg);
 			continue;
 		}
 
-		printf("INVALID TYPE [%d]\n", payload[0]);
+		printf("INVALID NFTP TYPE [%d]\n", payload[0]);
+		nng_msg_free(msg);
+		msg = NULL;
 	}
 
 	for (;;)
