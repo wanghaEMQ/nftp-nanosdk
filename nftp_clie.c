@@ -207,15 +207,15 @@ wait_ack_and_giveme(void *args)
 		// handle giveme
 		char * nftp_file_msg;
 		int    nftp_file_len;
-		if ((rv = nftp_proto_handler(payload, payload_len, &nftp_file_msg, &nftp_file_len)) != 0) {
+		if ((rv = nftp_proto_handler((char *)payload, payload_len, &nftp_file_msg, &nftp_file_len)) != 0) {
 			printf("Error in handle giveme %d\n", rv);
 			nng_msg_free(msg);
 			continue;
 		}
-		client_publish(sock, FTOPIC_BLOCKS, nftp_file_msg, nftp_file_len, 1, 1);
+		client_publish(sock, FTOPIC_BLOCKS, (uint8_t *)nftp_file_msg, nftp_file_len, 1, 1);
 
 		nng_msg_free(msg);
-		nng_msg_free(nftp_file_msg);
+		free(nftp_file_msg);
 	}
 }
 
@@ -299,7 +299,7 @@ main(const int argc, const char **argv)
 		rv = nftp_proto_maker(fpath, NFTP_TYPE_HELLO, 0, 0, &nftp_hello_msg, &nftp_hello_len);
 		if (rv != 0)
 			printf("hello make rv %d\n", rv);
-		client_publish(sock, FTOPIC_HELLO, nftp_hello_msg, nftp_hello_len, 1, 1);
+		client_publish(sock, FTOPIC_HELLO, (uint8_t *)nftp_hello_msg, nftp_hello_len, 1, 1);
 
 		// Wait an ACK
 		printf("wait ack\n");
@@ -313,7 +313,7 @@ main(const int argc, const char **argv)
 		rv = nftp_file_blocks(fpath, &blocks);
 		if (rv != 0)
 			printf("blocks rv %d\n", rv);
-		printf("blocks %d\n", blocks);
+		printf("blocks %zu\n", blocks);
 		nng_msleep(1000);
 
 		// Send FILEs and END
@@ -325,7 +325,7 @@ main(const int argc, const char **argv)
 				continue;
 			}
 			nftp_proto_maker(fpath, NFTP_TYPE_FILE, 0, i, &nftp_file_msg, &nftp_file_len);
-			client_publish(sock, FTOPIC_BLOCKS, nftp_file_msg, nftp_file_len, 1, 1);
+			client_publish(sock, FTOPIC_BLOCKS, (uint8_t *)nftp_file_msg, nftp_file_len, 1, 1);
 			// Assume 1 Mbps bandwidth
 			// 1Mbps / 8bit * 32KB ~= 4 Packets/sec
 			nng_msleep(250);
@@ -333,7 +333,7 @@ main(const int argc, const char **argv)
 		char *nftp_end_msg;
 		int   nftp_end_len;
 		nftp_proto_maker(fpath, NFTP_TYPE_END, 0, blocks-1, &nftp_end_msg, &nftp_end_len);
-		client_publish(sock, FTOPIC_BLOCKS, nftp_end_msg, nftp_end_len, 1, 1);
+		client_publish(sock, FTOPIC_BLOCKS, (uint8_t *)nftp_end_msg, nftp_end_len, 1, 1);
 		printf("done\n");
 	}
 

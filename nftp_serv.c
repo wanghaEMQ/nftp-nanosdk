@@ -193,8 +193,6 @@ client_publish(nng_socket sock, const char *topic, uint8_t *payload,
 	return rv;
 }
 
-static g_wait = 1;
-
 void
 ask_nextid(void *args)
 {
@@ -229,13 +227,13 @@ ask_nextid(void *args)
 		}
 		printf("ask nextid %d\n", nextid);
 
-		rv = nftp_proto_maker(fname_curr, NFTP_TYPE_GIVEME, 0, nextid, &payload, &payload_len);
+		rv = nftp_proto_maker(fname_curr, NFTP_TYPE_GIVEME, 0, nextid, (char **)&payload, (int *)&payload_len);
 		if (rv != 0) {
-			printf("errror in make giveme %d\n", fname_curr, rv);
+			printf("errror in make giveme %s %d\n", fname_curr, rv);
 			continue;
 		}
 
-		client_publish(sock, FTOPIC_GIVEME, payload, payload_len, 1, 1);
+		client_publish(sock, FTOPIC_GIVEME, (uint8_t *)payload, payload_len, 1, 1);
 	}
 }
 
@@ -327,7 +325,7 @@ main(const int argc, const char **argv)
 		payload = nng_mqtt_msg_get_publish_payload(msg, &payload_len);
 		printf("Received payload %d \n", payload_len);
 
-		rv = nftp_proto_handler(payload, payload_len, &nftp_reply_msg, &nftp_reply_len);
+		rv = nftp_proto_handler((char *)payload, payload_len, &nftp_reply_msg, &nftp_reply_len);
 		if (rv != 0) {
 			printf("Error in handling payload [%x] \n", payload[0]);
 		}
@@ -336,14 +334,14 @@ main(const int argc, const char **argv)
 			char *fname_;
 			int   flen_;
 			printf("Received HELLO");
-			nftp_proto_hello_get_fname(payload, payload_len, &fname_, &flen_);
+			nftp_proto_hello_get_fname((char *)payload, (int)payload_len, &fname_, &flen_);
 
 			fname_curr = strndup(fname_, flen_);
 			// Ask_nextid start work until now. Ugly but works.
 
 			printf("file name %s ..\n", fname_curr);
 			printf("reply ack\n");
-			client_publish(sock, FTOPIC_ACK, nftp_reply_msg, nftp_reply_len, 1, 1);
+			client_publish(sock, FTOPIC_ACK, (uint8_t *)nftp_reply_msg, nftp_reply_len, 1, 1);
 			free(nftp_reply_msg);
 
 			nng_msg_free(msg);
