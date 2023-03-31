@@ -243,10 +243,11 @@ send_callback(void *arg) {
 	nng_aio *aio = client->send_aio;
 	nng_msg *msg = nng_aio_get_msg(aio);
 	uint32_t count;
-	reason_code *code;
-	code = (reason_code *)nng_mqtt_msg_get_suback_return_codes(msg, &count);
+	uint8_t *code;
+	code = (uint8_t *)nng_mqtt_msg_get_suback_return_codes(msg, &count);
 	printf("aio mqtt result %d \n", nng_aio_result(aio));
-	printf("suback %d \n", *code);
+	for (int i=0; i<count; ++i)
+		printf("suback %x \n", code[i]);
 	nng_msg_free(msg);
 }
 
