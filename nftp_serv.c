@@ -45,13 +45,29 @@
 #define PUBLISH "pub"
 #define SUBSCRIBE "sub"
 
+#define MQTTV5 "aaaaaaaaa"
+
+#ifdef MQTTV5
+
+#define FTOPIC_ALLINONE "file/file-123"
+
+#define FTOPIC_HELLO  FTOPIC_ALLINONE
+#define FTOPIC_ACK    FTOPIC_ALLINONE
+#define FTOPIC_BLOCKS FTOPIC_ALLINONE
+#define FTOPIC_GIVEME FTOPIC_ALLINONE
+
+#else
+
 #define FTOPIC_HELLO "file/hello/file-123"
 #define FTOPIC_ACK "file/ack/file-123"
 #define FTOPIC_BLOCKS "file/blocks/file-123"
 #define FTOPIC_GIVEME "file/giveme/file-123"
+
+#endif
+
 #define FURL "mqtt-tcp://127.0.0.1:1883"
-#define FSENDERCLIENTID "file-sender"
-#define FRECVERCLIENTID "file-recver"
+#define FSENDERCLIENTID "file-123-sender"
+#define FRECVERCLIENTID "file-123-recver"
 
 static char *fname_curr = NULL;
 static int   flen_curr = 0;
@@ -126,10 +142,15 @@ client_connect(
     nng_socket *sock, nng_dialer *dialer, const char *url, bool verbose)
 {
 	int        rv;
-
+#ifdef MQTTV5
+	if ((rv = nng_mqttv5_client_open(sock)) != 0) {
+		fatal("nng_socket", rv);
+	}
+#else
 	if ((rv = nng_mqtt_client_open(sock)) != 0) {
 		fatal("nng_socket", rv);
 	}
+#endif
 
 	if ((rv = nng_dialer_create(dialer, *sock, url)) != 0) {
 		fatal("nng_dialer_create", rv);
@@ -140,7 +161,11 @@ client_connect(
 	nng_msg *connmsg;
 	nng_mqtt_msg_alloc(&connmsg, 0);
 	nng_mqtt_msg_set_packet_type(connmsg, NNG_MQTT_CONNECT);
+#ifdef MQTTV5
+	nng_mqtt_msg_set_connect_proto_version(connmsg, 5);
+#else
 	nng_mqtt_msg_set_connect_proto_version(connmsg, 4);
+#endif
 	nng_mqtt_msg_set_connect_keep_alive(connmsg, 60);
 	nng_mqtt_msg_set_connect_client_id(connmsg, FRECVERCLIENTID);
 	nng_mqtt_msg_set_connect_user_name(connmsg, "aaa");
@@ -272,8 +297,23 @@ main(const int argc, const char **argv)
 
 	signal(SIGINT, intHandler);
 
+#ifdef MQTTV5
+	int count = 1;
+#else
 	int count = 2;
+#endif
+
 	nng_mqtt_topic_qos subscriptions[] = {
+#ifdef MQTTV5
+		{
+		    .qos   = 0,
+		    .topic = { 
+				.buf    = (uint8_t *) FTOPIC_ALLINONE,
+		        .length = strlen(FTOPIC_ALLINONE),
+			},
+			.nolocal = 1,
+		},
+#else
 		{
 		    .qos   = 0,
 		    .topic = { 
@@ -288,7 +328,7 @@ main(const int argc, const char **argv)
 		        .length = strlen(FTOPIC_BLOCKS),
 			},
 		},
-
+#endif
 	};
 
 	nng_msleep(1000);
