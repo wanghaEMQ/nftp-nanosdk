@@ -350,6 +350,8 @@ main(const int argc, const char **argv)
 			nng_msleep(500);
 		}
 		printf("get ack and start\n");
+		// reset g_wait
+		g_wait = 1;
 
 		size_t blocks = 0;
 		rv = nftp_file_blocks(fpath, &blocks);
