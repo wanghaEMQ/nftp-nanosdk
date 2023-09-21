@@ -237,6 +237,7 @@ ask_nextid(void *args)
 
 		if ((rv = nftp_proto_recv_status(fname_curr, &blocks, &nextid)) != 0) {
 			printf("Done!!! The ctx of this file has been erase %s %d\n", fname_curr, rv);
+			free(fname_curr);
 			fname_curr = NULL;
 			continue;
 		}
@@ -259,14 +260,13 @@ ask_nextid(void *args)
 		}
 
 		client_publish(sock, FTOPIC_GIVEME, (uint8_t *)payload, payload_len, 1, 1);
+		free(payload);
 	}
 }
 
 static void
-send_callback(void *arg) {
-	nng_mqtt_client *client = (nng_mqtt_client *) arg;
+send_callback(nng_mqtt_client *client, nng_msg *msg, void *arg) {
 	nng_aio *aio = client->send_aio;
-	nng_msg *msg = nng_aio_get_msg(aio);
 	uint32_t count;
 	uint8_t *code;
 	code = (uint8_t *)nng_mqtt_msg_get_suback_return_codes(msg, &count);
@@ -378,6 +378,7 @@ main(const int argc, const char **argv)
 			nftp_proto_hello_get_fname((char *)payload, (int)payload_len, &fname_, &flen_);
 
 			fname_curr = strndup(fname_, flen_);
+			free(fname_);
 			// Ask_nextid start work until now. Ugly but works.
 
 			printf("file name %s ..\n", fname_curr);

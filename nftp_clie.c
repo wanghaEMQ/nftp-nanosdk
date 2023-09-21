@@ -246,10 +246,8 @@ wait_ack_and_giveme(void *args)
 }
 
 static void
-send_callback(void *arg) {
-	nng_mqtt_client *client = (nng_mqtt_client *) arg;
+send_callback(nng_mqtt_client *client, nng_msg *msg, void *arg) {
 	nng_aio *aio = client->send_aio;
-	nng_msg *msg = nng_aio_get_msg(aio);
 	uint32_t count;
 	uint8_t *code;
 	code = (uint8_t *)nng_mqtt_msg_get_suback_return_codes(msg, &count);
@@ -342,6 +340,7 @@ main(const int argc, const char **argv)
 		if (rv != 0)
 			printf("hello make rv %d\n", rv);
 		client_publish(sock, FTOPIC_HELLO, (uint8_t *)nftp_hello_msg, nftp_hello_len, 1, 1);
+		free(nftp_hello_msg);
 
 		// Wait an ACK
 		printf("wait ack\n");
@@ -370,14 +369,16 @@ main(const int argc, const char **argv)
 			}
 			nftp_proto_maker(fpath, NFTP_TYPE_FILE, 0, i, &nftp_file_msg, &nftp_file_len);
 			client_publish(sock, FTOPIC_BLOCKS, (uint8_t *)nftp_file_msg, nftp_file_len, 1, 1);
+			free(nftp_file_msg);
 			// Assume 1 Mbps bandwidth
 			// 1Mbps / 8bit * 32KB ~= 4 Packets/sec
-			nng_msleep(250);
+			nng_msleep(50);
 		}
 		char *nftp_end_msg;
 		int   nftp_end_len;
 		nftp_proto_maker(fpath, NFTP_TYPE_END, 0, blocks-1, &nftp_end_msg, &nftp_end_len);
 		client_publish(sock, FTOPIC_BLOCKS, (uint8_t *)nftp_end_msg, nftp_end_len, 1, 1);
+		free(nftp_end_msg);
 		printf("done\n");
 	}
 
