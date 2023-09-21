@@ -14,6 +14,11 @@ find_package(Threads)
 
 include_directories(".")
 
+add_library(nftp-codec-static STATIC IMPORTED)
+set_target_properties(nftp-codec-static PROPERTIES
+  IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/libnftp-codec-static.a"
+)
+
 add_executable(nftp_clie nftp_clie.c)
 target_link_libraries(nftp_clie nng nftp-codec-static)
 target_link_libraries(nftp_clie ${CMAKE_THREAD_LIBS_INIT})
