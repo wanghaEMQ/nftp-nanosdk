@@ -263,10 +263,8 @@ ask_nextid(void *args)
 }
 
 static void
-send_callback(void *arg) {
-	nng_mqtt_client *client = (nng_mqtt_client *) arg;
+send_callback(nng_mqtt_client *client, nng_msg *msg, void *arg) {
 	nng_aio *aio = client->send_aio;
-	nng_msg *msg = nng_aio_get_msg(aio);
 	uint32_t count;
 	uint8_t *code;
 	code = (uint8_t *)nng_mqtt_msg_get_suback_return_codes(msg, &count);
@@ -336,7 +334,7 @@ main(const int argc, const char **argv)
 	// rv = nng_mqtt_subscribe(&sock, subscriptions, 1, NULL);
 
 	// Asynchronous subscription
-	nng_mqtt_client *client = nng_mqtt_client_alloc(sock, &send_callback, true);
+	nng_mqtt_client *client = nng_mqtt_client_alloc(sock, &send_callback, NULL, NULL);
 	nng_mqtt_subscribe_async(client, subscriptions, count, NULL);
 	printf("sub done\n");
 
