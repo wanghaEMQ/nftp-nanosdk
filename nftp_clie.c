@@ -311,7 +311,7 @@ main(const int argc, const char **argv)
 		},
 #endif
 	};
-	nng_mqtt_client *client = nng_mqtt_client_alloc(sock, &send_callback, true);
+	nng_mqtt_client *client = nng_mqtt_client_alloc(sock, &send_callback, NULL, true);
 	nng_mqtt_subscribe_async(client, subscriptions, count, NULL);
 	// Sync subscription
 	// rv = nng_mqtt_subscribe(&sock, subscriptions, 1, NULL);
