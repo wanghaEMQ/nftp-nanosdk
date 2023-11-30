@@ -392,8 +392,11 @@ main(const int argc, const char **argv)
 		}
 
 		if (payload[0] == NFTP_TYPE_FILE || payload[0] == NFTP_TYPE_END) {
-			printf("Received FILE");
-			free(nftp_reply_msg);
+			// printf("Received FILE");
+			if (nftp_reply_msg) {
+				printf("Written filename is [%s]", nftp_reply_msg);
+				free(nftp_reply_msg);
+			}
 
 			nng_msg_free(msg);
 			msg = NULL;
